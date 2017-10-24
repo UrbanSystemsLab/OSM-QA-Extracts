@@ -35,21 +35,22 @@ Detailed Instructions: [Create Custom Extract](https://openmaptiles.org/docs/gen
 Use [Tippecanoe-Decode](https://github.com/mapbox/tippecanoe#tippecanoe-decode) to convert MBTiles to GeoJSON format
 
 ```sh
-tippecanoe-decode -z14 -Z14 NewYork.mbtiles >> data.geojson
+tippecanoe-decode -z12 -Z12 NewYork.mbtiles >> data.geojson
 ```
 
 ### 5. Extract features from GeoJSON
 Use JQ utility to extract features from the decoded GeoJSON file
 
 ```sh
-jq  --compact-output "[.features[] | .features[] |.features[]] " data.geojson > features.geojson
+jq  --compact-output ".features[]|.features[]|.features[]" data.geojson > features.json
+
 ```
 
 ### 6. Import the features to MongoDB 
 Import the features to a MongoDB collection
 
 ```sh
-mongoimport --db databaseName -c features --file "features.geojson" --jsonArray
+mongoimport --db databaseName -c features --file "features.json"
 ```
 
 ### 7. Aggregate buildings
@@ -60,6 +61,44 @@ Aggregate buildings from `features` collection into `buildings` collection
 db.features.count({'properties.height': {$exists : true}})
 # Export to buildings collection
 db.features.aggregate([{ $match: {'properties.height' : {$exists : true}} },{ $out: "buildings" }])
+```
+
+```
+
+⚠️ **Note**: Some third-party apps and libraries expect strict data type usage. For example, Mapbox-gl-js library expects height (for 3D-building-extrusion) as number instead of string. Use the following steps to convert the field in MongoDB to correct data type
+
+```sh
+# Count the features that have height encoded as string
+db.buildings.find({'properties.height' : {$type : 2} }).count()
+
+# Convert string data type to float 
+db.buildings.find({'properties.height': {$exists : 'true'}}).forEach(function(obj) { 
+	db.buildings.update({_id : obj._id},
+	{
+		$set : {'properties.height' : parseFloat(obj.properties.height)}
+	});
+});
+
+```
+
+### 8. Convert Features
+For the `buildings` collection in MongoDB database, this step takes care of:
+- Converting LineString features that have height to Polygons
+- Dropping Points that might have been aggerated with rest of the polygon features
+
+Some linestrings may have height property associated with it and can be converted to polygon. This is useful for extruding features in Mapbox-GL. Only polygons can be extruded.
+
+```sh
+# Count the # of Linestrings that have height
+db.features.count({ $and: [{'geometry.type': 'LineString'},{ 'properties.height': {$exists:true} }] })
+```
+
+Go to `LineStringsToPolygons` and update the `config.json` file for your setup.
+
+```sh
+cd LineStringsToPolygons
+npm install
+node lineToPoly.js
 ```
 
 ### 8. Export buildings
@@ -91,3 +130,19 @@ tippecanoe -pd -z 14 -n building -f -o san_juan.mbtiles building.geojson # Drop 
 Use OGR2OGR utility to convert the GeoJSON file to SHP File
 
 `ogr2ogr -f "ESRI Shapefile" data.shp "data.geojson" -skipfailures`
+
+---
+
+#### ⚠️ UTF-8 Encoding Warning
+
+ Make sure that the console output and resultant file output is utf-8. Otherwise JQ may not work as expected.
+
+**Windows Powershell Users**: Set output encoding to utf-8 [Reference](https://stackoverflow.com/questions/40098771/changing-powershells-default-output-encoding-to-utf-8)
+
+```sh
+# You can set out-file encoding to utf8 
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+
+# OR to convert a text file to utf8
+Get-Content UTF-16LE_encoded.geojson | Set-Content -Encoding utf8 utf8_encoded.geojson
+```
