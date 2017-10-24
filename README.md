@@ -10,7 +10,7 @@ This service is maintained by OSM Lab. It may be preferred over other sources of
 
 **Reference**: [OSM QA Tiles](https://osmlab.github.io/osm-qa-tiles/)
 
-![sample](img/sample.png)
+![sample](img/sample.jpg)
 
 ## Steps
 
@@ -26,7 +26,7 @@ The country tileset may be too large to be converted to GeoJSON. It is advised t
 ```sh
 npm install -g tilelive mbtiles
 # Create an extract of NYC from the United States of America Tileset.
-tilelive-copy --minzoom=0 --maxzoom=14  --bounds="-74.268265,40.504924,-73.646164,40.964863" united_states_of_america.mbtiles NewYork.mbtiles
+tilelive-copy --minzoom=0 --maxzoom=14  --bounds="-74.25909,40.477399,-73.700272,40.917577" united_states_of_america.mbtiles NewYork.mbtiles
 ```
 
 Detailed Instructions: [Create Custom Extract](https://openmaptiles.org/docs/generate/create-custom-extract/)
@@ -63,8 +63,6 @@ db.features.count({'properties.height': {$exists : true}})
 db.features.aggregate([{ $match: {'properties.height' : {$exists : true}} },{ $out: "buildings" }])
 ```
 
-```
-
 ⚠️ **Note**: Some third-party apps and libraries expect strict data type usage. For example, Mapbox-gl-js library expects height (for 3D-building-extrusion) as number instead of string. Use the following steps to convert the field in MongoDB to correct data type
 
 ```sh
@@ -93,12 +91,15 @@ Some linestrings may have height property associated with it and can be converte
 db.features.count({ $and: [{'geometry.type': 'LineString'},{ 'properties.height': {$exists:true} }] })
 ```
 
-Go to `LineStringsToPolygons` and update the `config.json` file for your setup.
+Go to `LineStringsToPolygons` and run the following script
 
 ```sh
 cd LineStringsToPolygons
 npm install
-node lineToPoly.js
+node lineToPoly.js --mongoUrl=Your_MongoDB_URL --collectionName=Collection_Name
+
+# Example:
+node lineToPoly.js --mongoUrl=mongodb://localhost:27017/nycdb --collectionName=buildings
 ```
 
 ### 8. Export buildings
@@ -112,9 +113,10 @@ mongoexport --db databaseName -c buildings --out "building_export.json" --jsonAr
 Wrap the JSON content within a `"FeatureCollection"` array of `"features"`.
 
 ```sh
-echo '{ "type": "FeatureCollection","features":'  >> building.geojson
-cat  building_export.json >> building.geojson
-echo '}' >> building.geojson
+# Input: json-file.json 
+# Output: geojson-file.geojson
+
+echo '{ "type": "FeatureCollection","features":'  >> building.geojson ; cat  building_export.json >> building.geojson ; echo '}' >> building.geojson
 ```
 
 ### 10. GeoJSON to MBTiles
@@ -123,7 +125,8 @@ Use Tippecanoe utility to convert the GeoJSON file to MBTiles
 ```sh
 tippecanoe -pd -z 14 -n <layer-name> -f -o <output-filename>.mbtiles <input-filename>.geojson # Drop all points, Max Zoom 14
 
-tippecanoe -pd -z 14 -n building -f -o san_juan.mbtiles building.geojson # Drop all points, Max Zoom 14
+# Example
+tippecanoe -pd -z 14 -n building -f -o nyc.mbtiles building.geojson # Drop all points, Max Zoom 14
 ```
 
 ### 11. Geojson to SHP

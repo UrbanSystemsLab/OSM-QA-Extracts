@@ -1,8 +1,10 @@
 const MongoClient = require('mongodb').MongoClient
 const turf = require('@turf/turf')
-const config = require('./config.json')
-const mongoUrl = config.mongoUrl // 'mongodb://localhost:27017/nycdb'
-const collectionName = config.collectionName
+const argv = require('yargs').argv
+
+var mongoUrl = argv.mongoUrl 
+var collectionName = argv.collectionName
+
 var cursor
 var count = 0
 var db = null

@@ -5,6 +5,7 @@
   "dependencies": {
     "@turf/linestring-to-polygon": "^5.0.0",
     "@turf/turf": "^4.7.3",
-    "mongodb": "^2.2.33"
+    "mongodb": "^2.2.33",
+    "yargs": "^10.0.3"
   }
 }
