@@ -2,7 +2,7 @@ const MongoClient = require('mongodb').MongoClient
 const turf = require('@turf/turf')
 const argv = require('yargs').argv
 
-var mongoUrl = argv.mongoUrl 
+var mongoUrl = argv.mongoUrl
 var collectionName = argv.collectionName
 
 var cursor
@@ -27,7 +27,7 @@ MongoClient.connect(mongoUrl)
 	})
 
 function convertLinetoPoly(callback) {
-	cursor = db.collection(collectionName).find({ $and: [{ 'geometry.type': 'LineString' }, { 'properties.height': { $exists: true } }] })
+	cursor = db.collection(collectionName).find({ $and: [{ $or: [{ 'geometry.type': 'MultiLineString' }, { 'geometry.type': 'LineString' }] }, { 'properties.height': { $exists: true } }] })
 	iterateCollectionCursor((cb) => {
 		callback(null)
 	})
@@ -37,10 +37,14 @@ function iterateCollectionCursor(cb) {
 	cursor.nextObject((err, feature) => {
 		if (feature && !err) {
 			count++
-
-			db.collection(collectionName).insert(turf.lineStringToPolygon(feature))
-
-			iterateCollectionCursor(cb)
+			try {
+				db.collection(collectionName).insert(turf.lineStringToPolygon(feature))
+			} catch (err) {
+				console.error(`Warning: Could not convert feature ${feature.id} to polygon`)
+			}
+			process.nextTick(() => {
+				iterateCollectionCursor(cb)
+			})
 		} else {
 			cb() // No more items
 		}
@@ -48,15 +52,10 @@ function iterateCollectionCursor(cb) {
 }
 
 function removeLineAndPoints(callback) {
-	db.collection(collectionName).remove({ $and: [{ 'geometry.type': 'LineString' }, { 'properties.height': { $exists: true } }] }, (err, result) => {
+	db.collection(collectionName).remove({ $and: [{ $or: [{ 'geometry.type': 'MultiLineString' }, { 'geometry.type': 'LineString' }, { 'geometry.type': 'Point' }] }, { 'properties.height': { $exists: true } }] }, (err, result) => {
 		if (!err) {
-			console.log(`Removed LineString features`)
-			db.collection(collectionName).remove({ $and: [{ 'geometry.type': 'Point' }, { 'properties.height': { $exists: true } }] }, (err, result) => {
-				if (!err) {
-					console.log(`Removed Point features`)
-					callback(null)
-				}
-			})
+			console.log(`Removed (Multi)LineString and Point features`)
+			callback(null)
 		}
 	})
 }

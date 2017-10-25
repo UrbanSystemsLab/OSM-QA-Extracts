@@ -70,13 +70,15 @@ db.features.aggregate([{ $match: {'properties.height' : {$exists : true}} },{ $o
 db.buildings.find({'properties.height' : {$type : 2} }).count()
 
 # Convert string data type to float 
-db.buildings.find({'properties.height': {$exists : 'true'}}).forEach(function(obj) { 
+db.buildings.find({'properties.height': {$exists : 'true'}}).forEach(function(obj) {
 	db.buildings.update({_id : obj._id},
 	{
 		$set : {'properties.height' : parseFloat(obj.properties.height)}
 	});
 });
 
+# Single line command
+db.buildings.find({'properties.height': {$exists : 'true'}}).forEach(function(obj) {db.buildings.update({_id : obj._id},{$set : {'properties.height' : parseFloat(obj.properties.height)}});});
 ```
 
 ### 8. Convert Features
@@ -88,7 +90,7 @@ Some linestrings may have height property associated with it and can be converte
 
 ```sh
 # Count the # of Linestrings that have height
-db.features.count({ $and: [{'geometry.type': 'LineString'},{ 'properties.height': {$exists:true} }] })
+db.buildings.count({ $and: [{$or: [{'geometry.type': 'MultiLineString'},{'geometry.type': 'LineString'}]},{ 'properties.height': {$exists:true} }] })
 ```
 
 Go to `LineStringsToPolygons` and run the following script
@@ -128,6 +130,7 @@ tippecanoe -pd -z 14 -n <layer-name> -f -o <output-filename>.mbtiles <input-file
 # Example
 tippecanoe -pd -z 14 -n building -f -o nyc.mbtiles building.geojson # Drop all points, Max Zoom 14
 ```
+![output](img/osm-qa.jpg)
 
 ### 11. Geojson to SHP
 Use OGR2OGR utility to convert the GeoJSON file to SHP File
