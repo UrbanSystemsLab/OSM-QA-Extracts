@@ -13,7 +13,13 @@ This service is maintained by OSM Lab. It may be preferred over other sources of
 ![sample](img/sample.jpg)
 
 ## Steps
-
+- Download MBTiles from OSM Lab service
+- Obtain the relevant MBTiles extract from the downloaded file
+- Decode MBTiles to GeoJSON format
+- Store GeoJSON data in a MongoDB database for futher processing
+- Export the required dataset from MongoDB
+- Convert the exported data to GeoJSON and SHP File
+ 
 ### 1.  Download Tiles
 Download the country specific tiles from [OSM QA Tiles](https://osmlab.github.io/osm-qa-tiles/country.html)
 
@@ -54,13 +60,21 @@ mongoimport --db databaseName -c features --file "features.json"
 ```
 
 ### 7. Aggregate buildings
-Aggregate buildings from `features` collection into `buildings` collection
+Aggregate buildings from `features` collection into `buildings` collection. *Optionally*, add some arbitrary height to buildings that are missing the `properties.height` attribute.
 
 ```sh
-# Count the number of features that have height property
-db.features.count({'properties.height': {$exists : true}})
-# Export to buildings collection
-db.features.aggregate([{ $match: {'properties.height' : {$exists : true}} },{ $out: "buildings" }])
+# Count features with properties = Buildings:True OR Height:True
+db.features.find({ $or : [{'properties.building' : {$exists : true} },{'properties.height' : {$exists : true} }]}).count()
+
+# Aggregate those features to buildings collection
+db.features.aggregate([{ $match: {$or : [{'properties.building' : {$exists : true} },{'properties.height' : {$exists : true} }]} },{ $out: "buildings" }])
+
+# Count buildings that are missing height attribute
+db.buildings.count({'properties.height': {$exists : false}})
+
+# Set default height for those buildings to '3'
+db.buildings.find({'properties.height': {$exists : false}}).forEach(function(obj) {db.buildings.update({_id : obj._id},{$set : {'properties.height' : parseFloat('3')}});});
+
 ```
 
 ⚠️ **Note**: Some third-party apps and libraries expect strict data type usage. For example, Mapbox-gl-js library expects height (for 3D-building-extrusion) as number instead of string. Use the following steps to convert the field in MongoDB to correct data type
