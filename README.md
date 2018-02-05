@@ -139,10 +139,10 @@ echo '{ "type": "FeatureCollection","features":'  >> building.geojson ; cat  bui
 Use Tippecanoe utility to convert the GeoJSON file to MBTiles
 
 ```sh
-tippecanoe -pd -z 14 -n <layer-name> -f -o <output-filename>.mbtiles <input-filename>.geojson # Drop all points, Max Zoom 14
+tippecanoe -pd -z 14 -n <tileset-name> -l <layer-name> -f -o <output-filename>.mbtiles <input-filename>.geojson # Drop all points, Max Zoom 14
 
 # Example
-tippecanoe -pd -z 14 -n building -f -o nyc.mbtiles building.geojson # Drop all points, Max Zoom 14
+tippecanoe -pd -z 14 -n tileset-new-york -l buildings-new-york -f -o buildings.mbtiles buildings.geojson # Drop all points, Max Zoom 14
 ```
 ![output](img/osm-qa.jpg)
 
